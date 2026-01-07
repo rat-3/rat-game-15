@@ -1,3 +1,2 @@
-util
-r@@ui  m ncurses util pthread
-assets m ncurses util
+r@@ui_ncurses r@@ui ncurses r@@ui
+# comment
