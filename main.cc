@@ -1,14 +1,16 @@
 #define MAIN ":3"
 #define RATATOUILLE_NCURSES "terminal illness"
-#define RATATOUILLE_USE_3D "help"
-#include <r@@ui.h>
 #include <iostream>
 #include <stdio.h>
 #include <cstring>
+#include <r@@ui.h>
 int main(int argc,char *argv[]){
+  // std::cout<<
+  // exit(0);
   ui::init();
   render::init();
-  ui::cameracomponent wow("camera test",30,100,3,3);
+  ui::cameracomponent wow("camera test",24,100,4,0);
+  ui::textcomponent greg(new char[60],"debug",4,32,0,0);
   int i=0;
   render::vec3<float> pjeanort{0,0,0};
   while(i!='\\'){
@@ -22,12 +24,15 @@ int main(int argc,char *argv[]){
       case 260:wow.cRot+=16;break;
       case 261:wow.cRot-=16;break;
     }
-    rot(pjeanort,wow.cRot);
+    // render::rot(pjeanort,wow.cRot);
+    snprintf(greg.text,60,"(%-#0.3f,%-#0.3f) ",pjeanort.x,pjeanort.y);
     wow.cPos=wow.cPos+pjeanort;
+    pjeanort.x=0;pjeanort.y=0;
     wow.draw();
+    greg.draw();
     wow.refresh();
+    greg.refresh();
     i=getch();
-    ui::penis=i;
   }
   ui::stop();
   return 0;

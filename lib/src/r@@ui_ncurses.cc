@@ -23,37 +23,6 @@ namespace ui {//https://pubs.opengroup.org/onlinepubs/007908799/xcurses/curses.h
     }
     return '?';
   };
-  int penis;
-
-  component::component(char* ptitle,rat_size height,rat_size width,rat_size y,rat_size x) noexcept:
-    c_win(newwin(height,width,y,x)),
-    title(ptitle),
-    x0((rat_size&)c_win->_begx),y0(c_win->_begy),x1(c_win->_maxx),y1(c_win->_maxy),
-    borderprovider(defaultborderprovider)
-    // ,last_x0(x0),last_y0(y0),last_x1(x1),last_y1(y1)
-  {}
-  textcomponent::textcomponent(char* ptext,char* ptitle,rat_size height,rat_size width,rat_size y,rat_size x) noexcept:
-    component(ptitle,height,width,y,x),
-    text(ptext){}
-  cameracomponent::cameracomponent(char* ptitle,rat_size height,rat_size width,rat_size y,rat_size x) noexcept:
-  component(ptitle,height,width,y,x){}
-
-  component::component(const char* ptitle,rat_size height,rat_size width,rat_size y,rat_size x) noexcept:
-    c_win(newwin(height,width,y,x)),
-    title(new char[strlen(ptitle)+1]),
-    x0((rat_size&)c_win->_begx),y0(c_win->_begy),x1(c_win->_maxx),y1(c_win->_maxy),
-    borderprovider(defaultborderprovider)
-    // ,last_x0(x0),last_y0(y0),last_x1(x1),last_y1(y1)
-  {
-    strcpy(title,ptitle);
-  }
-  textcomponent::textcomponent(const char* ptext,const char* ptitle,rat_size height,rat_size width,rat_size y,rat_size x) noexcept:
-    component(ptitle,height,width,y,x),
-    text(new char[strlen(ptext)+1]){
-      strcpy(text,ptext);
-    }
-  cameracomponent::cameracomponent(const char* ptitle,rat_size height,rat_size width,rat_size y,rat_size x) noexcept:
-    component(ptitle,height,width,y,x){}
 
   component::component(const component& c) noexcept:
     c_win(newwin(c.y1,c.x1,c.y0,c.x0)),
@@ -70,21 +39,20 @@ namespace ui {//https://pubs.opengroup.org/onlinepubs/007908799/xcurses/curses.h
   cameracomponent::cameracomponent(const component& c) noexcept:
     component(c){}//shouldn't need another one because no extra variables
 
-  component::component() noexcept:component(static_cast<char*>(NULL),4,16,3,3){}
-  textcomponent::textcomponent() noexcept:textcomponent(static_cast<char*>(NULL),static_cast<char*>(NULL),4,16,3,3){}
+  component::component() noexcept:component("",4,16,3,3){}
+  textcomponent::textcomponent() noexcept:textcomponent("","",4,16,3,3){}
 
   component::~component() noexcept {delwin(c_win);}
   textcomponent::~textcomponent() noexcept {/*this destructor called, then parent class*/}
   cameracomponent::~cameracomponent() noexcept{}
 
   void component::corner() const noexcept {
-    // wattron(c_win,COLOR_PAIR(0));
-    // attron(COLOR_PAIR(0));
+    wattron(c_win,COLOR_PAIR(0));
     mvwaddch(c_win,0,0,borderprovider(CORNER,0));
     mvwaddch(c_win,0,x1,borderprovider(CORNER,1));
     mvwaddch(c_win,y1,0,borderprovider(CORNER,2));
     mvwaddch(c_win,y1,x1,borderprovider(CORNER,3));
-    if((title!=NULL)&&(strlen(title)>x1-2)){
+    if((title!="")&&(strlen(title)>x1-2)){
       mvwaddnstr(c_win,0,1,title,x1-4);
       mvwaddstr(c_win,0,x1-3,"...");
     }else{
@@ -118,20 +86,24 @@ namespace ui {//https://pubs.opengroup.org/onlinepubs/007908799/xcurses/curses.h
   }
   void cameracomponent::draw() const noexcept {
     wclear(c_win);
-    // wattron(c_win,COLOR_PAIR(0));
+    wattron(c_win,COLOR_PAIR(0));
     corner();
     // std::cout<<fov1<<'\n';
     std::for_each(map.begin(),map.end(),[this](lin3<float> l){
       l.a=l.a-cPos;l.b=l.b-cPos;
-      rot(l.a,cRot);rot(l.b,cRot);
-      vec2<rat_size> a={
-        .x=(rat_size)((l.a.y/l.a.x+1)/2*x1),
-        .y=(rat_size)((l.a.z/l.a.x+1)/2*y1)
-      },b={
-        .x=(rat_size)((l.a.y/l.a.x+1)/2*x1),
-        .y=(rat_size)((l.b.z/l.b.x+1)/2*y1)
-      };
-      drawLine(a,b,1);
+      // if((l.a.x>0)&&(l.b.x>0)){
+        rot(l.a,cRot);rot(l.b,cRot);
+        vec2<rat_size> a={
+          .x=(rat_size)((l.a.y/l.a.x+1)/2*x1),
+          .y=(rat_size)((l.a.z/l.a.x+1)/2*y1)
+        },b={
+          .x=(rat_size)((l.b.y/l.b.x+1)/2*x1),
+          .y=(rat_size)((l.b.z/l.b.x+1)/2*y1)
+        };
+        putPixel(a,1);
+        putPixel(b,1);
+        drawLine(a,b,2);
+      // }
     });
   }
 
@@ -140,27 +112,25 @@ namespace ui {//https://pubs.opengroup.org/onlinepubs/007908799/xcurses/curses.h
   // void component::focus(){state.focused=&this;}
 
   void cameracomponent::putPixel(vec2<integral auto> p,char color) const {
-    // wattron(c_win,COLOR_PAIR(color));
+    wattron(c_win,COLOR_PAIR(color));
     mvwaddch(c_win,p.y,p.x,'+');
   }
   
   void cameracomponent::drawLine(vec2<integral auto> a,vec2<integral auto> b,char color) const {
-    short signed int
-      sx=(a.x<b.x)?1:-1,
-      sy=(a.y<b.y)?1:-1,
-      dx=(a.x>b.x)?a.x-b.x:b.x-a.x,
-      dy=(a.y>b.y)?a.y-b.y:b.y-a.y,
-      err=(dx>dy)?dx/2:dy/2,e2=0,i=0;
-    while(i!=255){
-      // printf("(%u,%u),",a.x,a.y);
-      this->putPixel(a,1);
-      if(a.x==b.x){
-        if(a.y==b.y){break;}}
-      if((a.x<b.x)^(sx+1!=0)){if((a.y<b.y)^(sy+1!=0)){break;}}
-      e2=err;
-      if(e2>-dx){err-=dy;a.x+=sx;}
-      if(e2< dy){err+=dx;a.y+=sy;}
-      i++;
+    short signed int m1=a.y-b.y,m2=a.x-b.x;
+    mvwprintw(mainWin,30,0,"(%u,%u)->(%u,%u)",a.x,a.y,b.x,b.y);
+    if(abs(m1)<abs(m2)){
+      float m=static_cast<float>(m1)/m2;
+      signed char s=(m2>0?-1:1);
+      for(short signed int i=a.x;i!=b.x;i+=s){
+        putPixel((vec2<int>){i,(int)(i*m+a.y)},color);
+      }
+    }else{
+      float m=static_cast<float>(m2)/m1;
+      signed char s=(m1>0?-1:1);
+      for(short signed int i=a.y;i!=b.y;i+=s){
+        putPixel((vec2<int>){(int)(i*m+a.x),i},color);
+      }
     }
   }
   
@@ -200,47 +170,46 @@ namespace render {
         (vec3<float>){1,-1,1}
       }
     );
-    map.push_back(
-      (lin3<float>){
-        (vec3<float>){1,-1,1},
-        (vec3<float>){-1,-1,1}
-      }
-    );
-    map.push_back(
-      (lin3<float>){
-        (vec3<float>){-1,-1,1},
-        (vec3<float>){-1,-1,-1}
-      }
-    );
-    map.push_back(
-      (lin3<float>){
-        (vec3<float>){-1,-1,-1},
-        (vec3<float>){-1,1,-1}
-      }
-    );
-    map.push_back(
-      (lin3<float>){
-        (vec3<float>){-1,1,-1},
-        (vec3<float>){-1,1,1}
-      }
-    );
-    map.push_back(
-      (lin3<float>){
-        (vec3<float>){-1,1,1},
-        (vec3<float>){1,1,1}
-      }
-    );
-
+    // map.push_back(
+    //   (lin3<float>){
+    //     (vec3<float>){1,-1,1},
+    //     (vec3<float>){-1,-1,1}
+    //   }
+    // );
+    // map.push_back(
+    //   (lin3<float>){
+    //     (vec3<float>){-1,-1,1},
+    //     (vec3<float>){-1,-1,-1}
+    //   }
+    // );
+    // map.push_back(
+    //   (lin3<float>){
+    //     (vec3<float>){-1,-1,-1},
+    //     (vec3<float>){-1,1,-1}
+    //   }
+    // );
+    // map.push_back(
+    //   (lin3<float>){
+    //     (vec3<float>){-1,1,-1},
+    //     (vec3<float>){-1,1,1}
+    //   }
+    // );
+    // map.push_back(
+    //   (lin3<float>){
+    //     (vec3<float>){-1,1,1},
+    //     (vec3<float>){1,1,1}
+    //   }
+    // );
   }
   
   void init(){
     assert(::ui::state.scractive);//idiot
     assert(has_colors());//we need color :/
-    // start_color();
-    // init_pair(0,COLOR_WHITE,COLOR_BLACK);
-    // init_pair(1,COLOR_GREEN,COLOR_BLACK);
-    // init_pair(2,COLOR_RED,COLOR_BLACK);
-    // attron(COLOR_PAIR(1));
+    start_color();
+    init_pair(0,COLOR_WHITE,COLOR_BLACK);
+    init_pair(1,COLOR_GREEN,COLOR_BLACK);
+    init_pair(2,COLOR_RED,COLOR_BLACK);
+    attron(COLOR_PAIR(0));
     // wprintw(ui::mainWin,"max pairs=%u",COLOR_PAIRS);
     genMap();
   }

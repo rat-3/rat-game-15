@@ -35,7 +35,7 @@ namespace render {//https://yuriygeorgiev.com/2022/08/17/polygon-based-software-
   struct tri2{vec2<T> a,b,c;int color;};
   
   template<arithmetic T>
-  void rot(vec3<T>& v,char d){
+  inline void rot(vec3<T>& v,char d){
     float r1=cos(d/128.0*M_PI),r2=sin(d/128.0*M_PI);
     float x=(v.x*r1)-(v.y*r2);
     v.y=v.y*r1+v.x*r2;
@@ -50,13 +50,14 @@ namespace render {//https://yuriygeorgiev.com/2022/08/17/polygon-based-software-
 }
 namespace ui {//reason everything is noexcept is that if it stops in the middle of something the terminal
   using namespace render;
-  extern int penis;
   enum border_type {//gets lobotomized and needs a restart (annoying as fuck)
     VERTICAL,//(if you write something that crashes or segfaults or whatever i get to kill and eat you)
     HORIZONTAL,
     CORNER,
   };
   extern char(*defaultborderprovider)(border_type,rat_size) noexcept;
+  template<typename T>
+  concept constornotstr=std::is_same_v<T,const char*>||std::is_same_v<T,char*>||(T::value==NULL);
   class component{
     protected:
 #ifdef RATATOUILLE_NCURSES
@@ -67,8 +68,8 @@ namespace ui {//reason everything is noexcept is that if it stops in the middle 
     // rat_size last_x0,last_y0,last_x1,last_y1;
     char* title;//probably disallow any non printing except \n
     char(*borderprovider)(border_type,rat_size) noexcept;
-    component(char* name,rat_size height,rat_size width,rat_size y,rat_size x) noexcept;
-    component(const char* name,rat_size height,rat_size width,rat_size y,rat_size x) noexcept;
+    template<constornotstr T>
+    component(T name,rat_size height,rat_size width,rat_size y,rat_size x) noexcept;
     component(const component& c) noexcept;
     component(void) noexcept;//i like having the little void in there it looks nice and neat
    ~component(void) noexcept;//me: why does this tea have steam shaped like a skull coming off of it
@@ -79,9 +80,11 @@ namespace ui {//reason everything is noexcept is that if it stops in the middle 
   class textcomponent:public component{
     public:
     char* text;
-    //formatting bullshittery goes in here somewhere
-    textcomponent(char* text,char* name,rat_size height,rat_size width,rat_size y,rat_size x) noexcept;
-    textcomponent(const char* text,const char* name,rat_size height,rat_size width,rat_size y,rat_size x) noexcept;
+    // textcomponent(char* text,char* name,rat_size height,rat_size width,rat_size y,rat_size x) noexcept;
+    // textcomponent(const char* text,const char* name,rat_size height,rat_size width,rat_size y,rat_size x) noexcept;
+    template<typename T,typename U>
+    requires (constornotstr<T>,constornotstr<U>)
+    textcomponent(T text,U name,rat_size height,rat_size width,rat_size y,rat_size x) noexcept;
     textcomponent(const component& c) noexcept;
     textcomponent(const textcomponent& tc) noexcept;
     textcomponent(void) noexcept;
@@ -94,8 +97,8 @@ namespace ui {//reason everything is noexcept is that if it stops in the middle 
     public:
     vec3<float> cPos{0,0,0};
     unsigned char cRot=0;//you can only have 256 rotations
-    cameracomponent(char* name,rat_size height,rat_size width,rat_size y,rat_size x) noexcept;
-    cameracomponent(const char* name,rat_size height,rat_size width,rat_size y,rat_size x) noexcept;
+    template<constornotstr T>
+    cameracomponent(T name,rat_size height,rat_size width,rat_size y,rat_size x) noexcept;
     cameracomponent(const component& c) noexcept;
     cameracomponent(const cameracomponent& cc) noexcept;
     cameracomponent(void) noexcept;
@@ -115,4 +118,23 @@ namespace ui {//reason everything is noexcept is that if it stops in the middle 
   void init(void) noexcept;
   void stop(void) noexcept;
 }
+#ifdef RATATOUILLE_NCURSES//template function DEFINITIONS need to be visible to the translation unit they're used in
+namespace ui {//as well as the declaractions. which is mildly annoying. but we ball
+  template<constornotstr T>
+  component::component(T ptitle,rat_size height,rat_size width,rat_size y,rat_size x) noexcept:
+    c_win(newwin(height,width,y,x)),
+    title(const_cast<char*>(std::is_const_v<T>?strcpy(new char[strlen(ptitle)+1],ptitle):ptitle)),
+    x0((rat_size&)c_win->_begx),y0(c_win->_begy),x1(c_win->_maxx),y1(c_win->_maxy),
+    borderprovider(defaultborderprovider)/*,
+    last_x0(x0),last_y0(y0),last_x1(x1),last_y1(y1)*/{}
+  template<typename T,typename U>
+  requires (constornotstr<T>,constornotstr<U>)
+  textcomponent::textcomponent(T ptext,U ptitle,rat_size height,rat_size width,rat_size y,rat_size x) noexcept:
+    component(ptitle,height,width,y,x),
+    text(const_cast<char*>(std::is_const_v<U>?strcpy(new char[strlen(ptext)+1],ptext):ptext)){}//this is so readable. trust me.
+  template<constornotstr T>
+  cameracomponent::cameracomponent(T ptitle,rat_size height,rat_size width,rat_size y,rat_size x) noexcept:
+  component(ptitle,height,width,y,x){}
+}
+#endif
 #endif
