@@ -122,11 +122,15 @@ namespace ui {//https://pubs.opengroup.org/onlinepubs/007908799/xcurses/curses.h
       short unsigned int am1=abs(m1),am2=abs(m2);
       mvwprintw(mainWin,30,0,"(%u,%u)->(%u,%u)",a.x,a.y,b.x,b.y);
       if(am1<am2){
-        char c=(m1==0?'-':((m1>0)^(m2>0))?'/':'\\');
-        float m=static_cast<float>(m1)/m2;
+        char c=(m1==0?'-':((m1>0)^(m2>0))?'/':'\\'),c1=c;
+        float m=static_cast<float>(m1)/m2,y1=a.y;
         signed char s=(m2>0?-1:1);
+        short signed int y=a.y;
         for(short signed int i=a.x;i!=b.x;i+=s){
-          putPixel((vec2<int>){i,(int)((i-a.x)*m+a.y)},color,c);
+          y1=((i-a.x)*m+a.y);
+          if((((int)y1)!=y)||((int)((i-a.x+s)*m+a.y)!=y)){c1=c;}else{c1='-';}
+          y=(int)y1;
+          putPixel((vec2<int>){i,y},color,c1);
         }
       }else{
         char c=(m2==0?'|':((m1>0)^(m2>0))?'\\':'/');
