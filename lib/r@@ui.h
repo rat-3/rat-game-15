@@ -14,6 +14,8 @@ namespace render {//https://yuriygeorgiev.com/2022/08/17/polygon-based-software-
   concept arithmetic=std::is_arithmetic_v<T>;
   template<typename T>
   concept integral=std::is_integral_v<T>;
+  template<typename T>
+  concept signarith=std::is_arithmetic_v<T>&&std::is_signed_v<T>;
   
   template<arithmetic T>
   struct vec3{
@@ -33,7 +35,7 @@ namespace render {//https://yuriygeorgiev.com/2022/08/17/polygon-based-software-
   struct lin2{vec3<T> a,b;};
   template<arithmetic T>
   struct tri2{vec2<T> a,b,c;int color;};
-  
+
   template<arithmetic T>
   inline void rot(vec3<T>& v,char d){
     float r1=cos(d/128.0*M_PI),r2=sin(d/128.0*M_PI);
@@ -41,10 +43,14 @@ namespace render {//https://yuriygeorgiev.com/2022/08/17/polygon-based-software-
     v.y=v.y*r1+v.x*r2;
     v.x=x;
   }
-  
+  template<signarith T,signarith U,signarith V,signarith W,signarith X,signarith Y>
+  inline char area(T x0,U y0,V x1,W y1,X x2,Y y2){
+    return((x0 * (y1-y2)) + (x1 * (y2-y0)) + (x2 * (y0-y1)));
+  }
+
   extern std::vector<lin3<float>> map;
   extern double fov;
-  
+
   void init();
   void stop();
 }
@@ -92,10 +98,28 @@ namespace ui {//reason everything is noexcept is that if it stops in the middle 
     void draw(void) const noexcept override;
   };
   class cameracomponent:public component{
-    void putPixel(vec2<integral auto> p,char color,char c) const;
     void putPixel(integral auto x,integral auto y,char color,char c) const;
-    void drawLine(vec2<integral auto> a,vec2<integral auto> b,char color) const;
+    void putPixel(vec2<integral auto> p,char color,char c) const {
+      auto [x,y]=p;
+      putPixel(x,y,color,c);
+    }
     void drawLine(integral auto x0,integral auto y0,integral auto x1,integral auto y1,char color) const;
+    void drawLine(vec2<integral auto> a,vec2<integral auto> b,char color) const {
+      auto [x_0,y_0]=a;
+      auto [x_1,y_1]=b;
+      drawLine(x_0,y_0,x_1,y_1,color);
+    }
+    void drawTri(integral auto x0,integral auto y0,integral auto x1,integral auto y1,integral auto x2,integral auto y2,char color, char ch) const {
+      unsigned int a=(x0*(y1-y2)+x1*(y2-y0)+x2*(y0-y1));
+      
+    }
+    void drawTri(vec2<integral auto> a,vec2<integral auto> b,vec2<integral auto> c,char color,char ch) const{
+      auto [x_0,y_0]=a;
+      auto [x_1,y_1]=b;
+      auto [x_2,y_2]=c;
+      drawTri(x_0,y_0,x_1,y_1,x_2,y_2,color,ch);
+    }
+    // void drawTri(vec2<integral auto> a,vec2<integral auto> b,vec2<integral auto> c,char color,char c) const;
     public:
     vec3<float> cPos{0,0,0};
     unsigned char cRot=0;//you can only have 256 rotations

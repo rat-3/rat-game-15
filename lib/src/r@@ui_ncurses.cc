@@ -108,20 +108,11 @@ namespace ui {//https://pubs.opengroup.org/onlinepubs/007908799/xcurses/curses.h
 
   // void component::focus(){state.focused=&this;}
 
-  void cameracomponent::putPixel(vec2<integral auto> p,char color,char c) const {
-    auto [x,y]=p;
-    putPixel(x,y,color,c);
-  }
   void cameracomponent::putPixel(integral auto x,integral auto y,char color,char c) const {
     wattron(c_win,COLOR_PAIR(color));
     mvwaddch(c_win,y,x,c);
   }
 
-  void cameracomponent::drawLine(vec2<integral auto> a,vec2<integral auto> b,char color) const {
-    auto [x_0,y_0]=a;
-    auto [x_1,y_1]=b;
-    drawLine(x_0,y_0,x_1,y_1,color);
-  }
   void cameracomponent::drawLine(integral auto x_0,integral auto y_0,integral auto x_1,integral auto y_1,char color) const {
     // if((x0<x1)&&(y0<y1)&&(x1<x1)&&(y1<y1)){
       short signed int m1=y_0-y_1,m2=x_0-x_1;
@@ -138,13 +129,13 @@ namespace ui {//https://pubs.opengroup.org/onlinepubs/007908799/xcurses/curses.h
           putPixel(i,y,color,c1);
         }
       }else{
-        char c=(m2==0?'-':((m2>0)^(m1>0))?'/':'\\'),c1=0;
+        char c=(m2==0?'|':((m2>0)^(m1>0))?'/':'\\'),c1=0;
         float m=static_cast<float>(m2)/m1,a=x_0;
         signed char s=(m1>0?-1:1);
         short signed int x=x_0;
         for(short signed int i=y_0;i!=y_1;i+=s){
           a=((i-y_0)*m+x_0);
-          if((((int)a)!=x)||((int)((i-y_0+s)*m+x_0)!=x)){c1=c;}else{c1='-';}
+          if((((int)a)!=x)||((int)((i-y_0+s)*m+x_0)!=x)){c1=c;}else{c1='|';}
           x=(int)a;
           putPixel(x,i,color,c1);
         }
