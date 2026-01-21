@@ -15,8 +15,8 @@ namespace render {//https://yuriygeorgiev.com/2022/08/17/polygon-based-software-
   template<typename T>
   concept integral=std::is_integral_v<T>;
   template<typename T>
-  concept signarith=std::is_arithmetic_v<T>&&std::is_signed_v<T>;
-  
+  concept comparable=requires(T a,T b){a<b;a>b;};
+
   template<arithmetic T>
   struct vec3{
     T x,y,z;
@@ -43,12 +43,28 @@ namespace render {//https://yuriygeorgiev.com/2022/08/17/polygon-based-software-
     v.y=v.y*r1+v.x*r2;
     v.x=x;
   }
-  template<signarith T,signarith U,signarith V,signarith W,signarith X,signarith Y>
-  inline char area(T x0,U y0,V x1,W y1,X x2,Y y2){
-    return((x0 * (y1-y2)) + (x1 * (y2-y0)) + (x2 * (y0-y1)));
+  template<arithmetic T>
+  inline std::make_signed_t<T> triarea(T x0,T y0,T x1,T y1,T x2,T y2){
+    using st=std::make_signed_t<T>;
+    return((x0 * ((st)y1-y2)) + (x1 * ((st)y2-y0)) + (x2 * ((st)y0-y1)));
+  }
+  template<arithmetic T>
+  inline vec2<rat_size> toScreenSpace(vec3<T> v,rat_size sx,rat_size sy){
+    return((vec2<rat_size>){
+      (rat_size)((v.y/v.x+1)*sx/2),
+      (rat_size)((v.z/v.x+1)*sy/2)
+    });
+  }
+  template<arithmetic T>
+  inline tri2<rat_size> toScreenSpace(tri3<T> t,rat_size sx,rat_size sy){
+    return((tri2<rat_size>){
+      .a=toScreenSpace(t.a,sx,sy),
+      .b=toScreenSpace(t.b,sx,sy),
+      .c=toScreenSpace(t.c,sx,sy)
+    });
   }
 
-  extern std::vector<lin3<float>> map;
+  extern std::vector<tri3<float>> map;
   extern double fov;
 
   void init();
@@ -70,7 +86,7 @@ namespace ui {//reason everything is noexcept is that if it stops in the middle 
     WINDOW* c_win;//need a way to localize this to the ncurses version
 #endif
     public:
-    rat_size& x0,y0,x1,y1;
+    rat_size& x_0,y_0,x_1,y_1;
     // rat_size last_x0,last_y0,last_x1,last_y1;
     char* title;//probably disallow any non printing except \n
     char(*borderprovider)(border_type,rat_size) noexcept;
@@ -98,28 +114,17 @@ namespace ui {//reason everything is noexcept is that if it stops in the middle 
     void draw(void) const noexcept override;
   };
   class cameracomponent:public component{
-    void putPixel(integral auto x,integral auto y,char color,char c) const;
-    void putPixel(vec2<integral auto> p,char color,char c) const {
+    void putPixel(rat_size x,rat_size y,char color,char c) const;
+    void putPixel(vec2<rat_size> p,char color,char c) const {
       auto [x,y]=p;
       putPixel(x,y,color,c);
     }
-    void drawLine(integral auto x0,integral auto y0,integral auto x1,integral auto y1,char color) const;
-    void drawLine(vec2<integral auto> a,vec2<integral auto> b,char color) const {
-      auto [x_0,y_0]=a;
-      auto [x_1,y_1]=b;
-      drawLine(x_0,y_0,x_1,y_1,color);
-    }
-    void drawTri(integral auto x0,integral auto y0,integral auto x1,integral auto y1,integral auto x2,integral auto y2,char color, char ch) const {
-      unsigned int a=(x0*(y1-y2)+x1*(y2-y0)+x2*(y0-y1));
-      
-    }
-    void drawTri(vec2<integral auto> a,vec2<integral auto> b,vec2<integral auto> c,char color,char ch) const{
-      auto [x_0,y_0]=a;
-      auto [x_1,y_1]=b;
-      auto [x_2,y_2]=c;
-      drawTri(x_0,y_0,x_1,y_1,x_2,y_2,color,ch);
-    }
-    // void drawTri(vec2<integral auto> a,vec2<integral auto> b,vec2<integral auto> c,char color,char c) const;
+    void drawLine(rat_size x_0,rat_size y_0,rat_size x_1,rat_size y_1,char color) const;
+    // void drawLine(vec2<rat_size> a,vec2<rat_size> b,char color) const: drawLine(a.x,a.y,b.x,b.y,color) {}
+    // void drawLine(lin2<rat_size> l,char color) const: drawLine(l.a,l.b,color) {}
+    void drawTri(rat_size x_0,rat_size y_0,rat_size x_1,rat_size y_1,rat_size x2,rat_size y2,char color, char ch) const;
+    // void drawTri(vec2<rat_size> a,vec2<rat_size> b,vec2<rat_size> c,char color,char ch) const: drawTri(a.x,a.y,b.x,b.y,c.x,c.y,color,ch) {}
+    void drawTri(tri2<rat_size> t,char color,char ch) const {drawTri(t.a.x,t.a.y,t.b.x,t.b.y,t.c.x,t.c.y,color,ch);}
     public:
     vec3<float> cPos{0,0,0};
     unsigned char cRot=0;//you can only have 256 rotations
@@ -150,9 +155,9 @@ namespace ui {//as well as the declaractions. which is mildly annoying. but we b
   component::component(T ptitle,rat_size height,rat_size width,rat_size y,rat_size x) noexcept:
     c_win(newwin(height,width,y,x)),
     title(const_cast<char*>(std::is_const_v<T>?strcpy(new char[strlen(ptitle)+1],ptitle):ptitle)),
-    x0((rat_size&)c_win->_begx),y0(c_win->_begy),x1(c_win->_maxx),y1(c_win->_maxy),
+    x_0((rat_size&)c_win->_begx),y_0(c_win->_begy),x_1(c_win->_maxx),y_1(c_win->_maxy),
     borderprovider(defaultborderprovider)/*,
-    last_x0(x0),last_y0(y0),last_x1(x1),last_y1(y1)*/{}
+    last_x0(x_0),last_y0(y_0),last_x1(x_1),last_y1(y_1)*/{}
   template<typename T,typename U>
   requires (constornotstr<T>,constornotstr<U>)
   textcomponent::textcomponent(T ptext,U ptitle,rat_size height,rat_size width,rat_size y,rat_size x) noexcept:
